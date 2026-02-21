@@ -1,0 +1,30 @@
+[workspace]
+members = ["demo-wasm"]
+resolver = "3"
+
+[package]
+name = "softy"
+version = "0.1.0"
+edition = "2024"
+description = "Spring-damper systems and Verlet integration for games — ropes, cloth, and soft bodies"
+license = "MIT OR Apache-2.0"
+
+[lib]
+name = "softy"
+path = "src/lib.rs"
+
+[features]
+default = []
+std = []
+
+[dependencies]
+rand_core = { version = "0.6", default-features = false }
+libm = "0.2"
+
+[dev-dependencies]
+rand = { version = "0.8", features = ["small_rng"] }
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "physics"
+harness = false

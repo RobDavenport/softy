@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>softy — Physics Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; }
+  .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+  h1 { text-align: center; color: #7fdbca; margin-bottom: 10px; font-size: 1.5rem; }
+  .subtitle { text-align: center; color: #888; margin-bottom: 20px; font-size: 0.9rem; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 0; }
+  .tab {
+    flex: 1; padding: 8px 12px; border: none; cursor: pointer;
+    background: #2a2a4a; color: #aaa; border-radius: 6px 6px 0 0;
+    font-size: 0.85rem; transition: all 0.2s;
+  }
+  .tab:hover { background: #3a3a5a; color: #ccc; }
+  .tab.active { background: #7fdbca; color: #1a1a2e; font-weight: 600; }
+  canvas {
+    display: block; width: 100%; background: #16213e;
+    border-radius: 0 0 8px 8px; cursor: crosshair;
+  }
+  .controls { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .control-group { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; }
+  .control-group label { color: #7fdbca; min-width: 50px; }
+  .control-group input[type="range"] { width: 120px; }
+  .control-group .value { color: #aaa; min-width: 40px; text-align: right; }
+  .btn {
+    padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer;
+    background: #7fdbca; color: #1a1a2e; font-size: 0.8rem; font-weight: 600;
+    transition: all 0.2s;
+  }
+  .btn:hover { background: #5fc4b0; }
+  .info { margin-top: 10px; font-size: 0.75rem; color: #666; text-align: center; }
+  .footer { margin-top: 16px; text-align: center; font-size: 0.75rem; color: #555; }
+  .footer a { color: #7fdbca; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>softy</h1>
+  <p class="subtitle">Spring-damper systems &amp; Verlet integration</p>
+  <div class="tabs">
+    <button class="tab active" data-tab="springs">Springs</button>
+    <button class="tab" data-tab="rope">Rope</button>
+    <button class="tab" data-tab="cloth">Cloth</button>
+    <button class="tab" data-tab="softbody">Soft Body</button>
+  </div>
+  <canvas id="canvas" width="700" height="500"></canvas>
+  <div class="controls" id="controls"></div>
+  <p class="info" id="info">Move your mouse over the canvas</p>
+  <div class="footer">
+    <a href="https://github.com/robdavenport/softy" target="_blank">GitHub</a>
+    &middot;
+    <a href="https://crates.io/crates/softy" target="_blank">crates.io</a>
+  </div>
+</div>
+<script type="module" src="main.js"></script>
+</body>
+</html>
