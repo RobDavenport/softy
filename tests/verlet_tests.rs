@@ -43,3 +43,33 @@ fn pinned_particle_stays_fixed() {
     assert_eq!(p.pos.x, 5.0);
     assert_eq!(p.pos.y, 5.0);
 }
+
+#[test]
+fn mass_weighting_heavier_moves_less() {
+    // Heavy particle at origin, light particle at (10, 0).
+    // Connected by a distance constraint with rest_length 5.0.
+    // Current distance is 10.0 so constraint should pull them together.
+    let mut particles = [
+        Particle::new(Vec2::new(0.0, 0.0), 10.0), // heavy
+        Particle::new(Vec2::new(10.0, 0.0), 1.0),  // light
+    ];
+
+    let initial_heavy = particles[0].pos;
+    let initial_light = particles[1].pos;
+
+    let constraint = DistanceConstraint::new(0, 1, 5.0, 1.0);
+    constraint.solve(&mut particles);
+
+    let heavy_displacement = particles[0].pos.distance(initial_heavy);
+    let light_displacement = particles[1].pos.distance(initial_light);
+
+    assert!(
+        heavy_displacement < light_displacement,
+        "Heavier particle should move less: heavy moved {}, light moved {}",
+        heavy_displacement, light_displacement
+    );
+
+    // Verify both actually moved (constraint was active)
+    assert!(heavy_displacement > 0.0, "Heavy particle should have moved");
+    assert!(light_displacement > 0.0, "Light particle should have moved");
+}
