@@ -1,4 +1,5 @@
 use softy::{VerletChain, ChainConfig, SolverConfig, Vec2, NoOpStepObserver};
+use softy::Vec;
 
 #[test]
 fn chain_correct_particle_count() {
@@ -73,11 +74,8 @@ fn chain_total_length_after_settling() {
     chain.pin(0);
     chain.pin(segments);
 
-    let expected_total_rest_length: f32 = {
-        let dx = end.x - start.x;
-        let dy = end.y - start.y;
-        (dx * dx + dy * dy).sqrt() // 10.0
-    };
+    // Chain starts straight, so total rest length = endpoint distance.
+    let expected_total_rest_length: f32 = start.distance(end); // 10.0
 
     let config = SolverConfig::new()
         .with_gravity(Vec2::new(0.0, -9.81))
@@ -99,8 +97,8 @@ fn chain_total_length_after_settling() {
 
     let diff = (actual_total_length - expected_total_rest_length).abs();
     assert!(
-        diff < 1.0,
-        "Total chain length {:.4} should be within 1.0 of expected rest length {:.4} (diff = {:.4})",
+        diff < 0.5,
+        "Total chain length {:.4} should be within 0.5 of expected rest length {:.4} (diff = {:.4})",
         actual_total_length,
         expected_total_rest_length,
         diff,

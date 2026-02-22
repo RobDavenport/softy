@@ -25,8 +25,8 @@ fn pressure_maintains_area_under_gravity() {
 
     let final_area = body.area();
     assert!(
-        final_area > initial_area * 0.5,
-        "Pressure should prevent total collapse: final area {} is less than 50% of initial area {}",
+        final_area > initial_area * 0.8,
+        "Pressure should maintain area: final area {} is less than 80% of initial area {}",
         final_area,
         initial_area,
     );
