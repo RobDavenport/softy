@@ -13,7 +13,7 @@ A `no_std` Rust library for spring-damper systems and Verlet integration, target
 ## Hard Rules
 
 - `#![no_std]` with `extern crate alloc` — no std dependency in core library
-- `rand_core` is the ONLY dependency
+- `rand_core` and `libm` are the ONLY dependencies
 - All tests: `cargo test --target x86_64-pc-windows-msvc`
 - WASM check: `cargo build --target wasm32-unknown-unknown --release`
 - Deterministic: same inputs must produce same results
