@@ -5,8 +5,11 @@ let currentTab = 'springs';
 let demos = {};
 let mouseX = 300, mouseY = 300;
 let mouseDown = false;
+let lastMouseX = 300, lastMouseY = 300;
 let lastTime = 0;
-let windStrength = 0;
+let windStrength = 45;
+let windPhase = 0;
+let clothDragDistance = 0;
 
 async function main() {
     await init();
@@ -35,12 +38,29 @@ async function main() {
         var rect = canvas.getBoundingClientRect();
         var scaleX = canvas.width / rect.width;
         var scaleY = canvas.height / rect.height;
-        mouseX = (e.clientX - rect.left) * scaleX;
-        mouseY = (e.clientY - rect.top) * scaleY;
+        var x = (e.clientX - rect.left) * scaleX;
+        var y = (e.clientY - rect.top) * scaleY;
+        if (mouseDown && currentTab === 'cloth') {
+            var dx = x - lastMouseX;
+            var dy = y - lastMouseY;
+            clothDragDistance += Math.sqrt(dx * dx + dy * dy);
+        }
+        mouseX = x;
+        mouseY = y;
+        lastMouseX = x;
+        lastMouseY = y;
     });
 
-    canvas.addEventListener('mousedown', function() {
+    canvas.addEventListener('mousedown', function(e) {
+        var rect = canvas.getBoundingClientRect();
+        var scaleX = canvas.width / rect.width;
+        var scaleY = canvas.height / rect.height;
+        mouseX = (e.clientX - rect.left) * scaleX;
+        mouseY = (e.clientY - rect.top) * scaleY;
+        lastMouseX = mouseX;
+        lastMouseY = mouseY;
         mouseDown = true;
+        clothDragDistance = 0;
     });
 
     canvas.addEventListener('mouseup', function() {
@@ -59,6 +79,9 @@ async function main() {
         var y = (e.clientY - rect.top) * scaleY;
 
         if (currentTab === 'cloth') {
+            if (clothDragDistance > 6) {
+                return;
+            }
             // Find nearest grid position and tear
             var cols = demos.cloth.cols();
             var rows = demos.cloth.rows();
@@ -77,10 +100,10 @@ async function main() {
             var col = nearest % cols;
             var row = Math.floor(nearest / cols);
             if (row > 0) {
-                demos.cloth.tear_at(col, row);
+                demos.cloth.tear_patch(col, row, 1);
             }
         } else if (currentTab === 'softbody') {
-            demos.softbody.poke(x, y, (x - 350) * -0.5, -80.0);
+            demos.softbody.poke(x, y);
         }
     });
 
@@ -108,7 +131,8 @@ function update(dt) {
         demos.rope.update(dt);
     } else if (currentTab === 'cloth') {
         if (windStrength !== 0) {
-            demos.cloth.apply_wind(windStrength);
+            windPhase += dt * 2.0;
+            demos.cloth.apply_wind(Math.sin(windPhase) * windStrength);
         }
         demos.cloth.update(dt);
     } else if (currentTab === 'softbody') {
@@ -244,7 +268,7 @@ function renderCloth() {
             var i3 = ((row + 1) * cols + col + 1) * 2;
 
             // Upper triangle
-            ctx.fillStyle = '#7fdbca10';
+            ctx.fillStyle = '#7fdbca22';
             ctx.beginPath();
             ctx.moveTo(pos[i0], pos[i0 + 1]);
             ctx.lineTo(pos[i1], pos[i1 + 1]);
@@ -253,7 +277,7 @@ function renderCloth() {
             ctx.fill();
 
             // Lower triangle
-            ctx.fillStyle = '#7fdbca08';
+            ctx.fillStyle = '#7fdbca1a';
             ctx.beginPath();
             ctx.moveTo(pos[i1], pos[i1 + 1]);
             ctx.lineTo(pos[i3], pos[i3 + 1]);
@@ -264,7 +288,7 @@ function renderCloth() {
     }
 
     // Horizontal lines
-    ctx.strokeStyle = '#7fdbca50';
+    ctx.strokeStyle = '#7fdbca90';
     ctx.lineWidth = 1;
     for (var row = 0; row < rows; row++) {
         ctx.beginPath();
@@ -287,29 +311,40 @@ function renderCloth() {
         ctx.stroke();
     }
 
-    // Draw pinned top row
-    for (var col = 0; col < cols; col++) {
-        var idx = col * 2;
-        ctx.fillStyle = '#ff6b6b';
+    // Draw particles
+    ctx.fillStyle = '#7fdbca';
+    for (var i = 0; i < cols * rows; i++) {
+        var p = i * 2;
         ctx.beginPath();
-        ctx.arc(pos[idx], pos[idx + 1], 3, 0, Math.PI * 2);
+        ctx.arc(pos[p], pos[p + 1], 1.5, 0, Math.PI * 2);
         ctx.fill();
     }
+
+    // Draw pinned corners
+    var leftPin = 0;
+    var rightPin = (cols - 1) * 2;
+    ctx.fillStyle = '#ff6b6b';
+    ctx.beginPath();
+    ctx.arc(pos[leftPin], pos[leftPin + 1], 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(pos[rightPin], pos[rightPin + 1], 4, 0, Math.PI * 2);
+    ctx.fill();
 }
 
 function renderSoftBody() {
     var colors = ['#7fdbca', '#ff6b6b', '#ffd93d'];
     var count = demos.softbody.body_count();
+    var bounds = demos.softbody.bounds();
+    var minX = bounds[0];
+    var minY = bounds[1];
+    var maxX = bounds[2];
+    var maxY = bounds[3];
 
-    // Draw floor line
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([6, 4]);
-    ctx.beginPath();
-    ctx.moveTo(10, canvas.height - 20);
-    ctx.lineTo(canvas.width - 10, canvas.height - 20);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    // Draw simulation bounds
+    ctx.strokeStyle = '#3a4e67';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
 
     for (var b = 0; b < count; b++) {
         var pos = demos.softbody.body_positions(b);
@@ -365,8 +400,8 @@ function updateControls() {
         controlsEl.innerHTML =
             '<div class="control-group">' +
             '<label>Wind</label>' +
-            '<input type="range" id="wind-slider" min="-200" max="200" value="0" step="10">' +
-            '<span class="value" id="wind-value">0</span>' +
+            '<input type="range" id="wind-slider" min="0" max="180" value="' + windStrength + '" step="5">' +
+            '<span class="value" id="wind-value">' + windStrength + '</span>' +
             '</div>' +
             '<button class="btn" id="btn-reset-cloth">Reset</button>';
 
@@ -377,9 +412,10 @@ function updateControls() {
 
         document.getElementById('btn-reset-cloth').addEventListener('click', function() {
             demos.cloth = new ClothDemo(15, 12, 25.0);
-            windStrength = 0;
-            document.getElementById('wind-slider').value = 0;
-            document.getElementById('wind-value').textContent = '0';
+            windStrength = 45;
+            windPhase = 0;
+            document.getElementById('wind-slider').value = windStrength;
+            document.getElementById('wind-value').textContent = String(windStrength);
         });
     } else if (currentTab === 'softbody') {
         controlsEl.innerHTML =
@@ -405,8 +441,8 @@ function updateInfo() {
     var msgs = {
         springs: 'Move mouse to set spring target. Three damping modes follow the cursor.',
         rope: 'Move mouse to drag the pinned end. The rope swings under gravity.',
-        cloth: 'Click to tear the cloth. Use the wind slider to apply horizontal force.',
-        softbody: 'Click to poke the soft bodies. They bounce under gravity.'
+        cloth: 'Wind is always active; click to tear a patch in the fabric.',
+        softbody: 'Click on a blob to poke it. Bodies stay contained inside the box.'
     };
     info.textContent = msgs[currentTab] || '';
 }

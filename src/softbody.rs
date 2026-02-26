@@ -1,11 +1,11 @@
 //! 2D pressure-based soft body simulation.
 
-use crate::float::Float;
-use crate::vec::{Vec, Vec2};
-use crate::particle::Particle;
-use crate::constraint::DistanceConstraint;
 use crate::config::SolverConfig;
+use crate::constraint::{BoundsConstraint, DistanceConstraint};
+use crate::float::Float;
 use crate::observer::StepObserver;
+use crate::particle::Particle;
+use crate::vec::{Vec, Vec2};
 use alloc::vec::Vec as AllocVec;
 
 /// A 2D pressure-based soft body.
@@ -18,13 +18,7 @@ pub struct SoftBody<F: Float> {
 
 impl<F: Float> SoftBody<F> {
     /// Create a circular soft body.
-    pub fn circle(
-        center: Vec2<F>,
-        radius: F,
-        segments: usize,
-        pressure: F,
-        stiffness: F,
-    ) -> Self {
+    pub fn circle(center: Vec2<F>, radius: F, segments: usize, pressure: F, stiffness: F) -> Self {
         let mut particles = AllocVec::with_capacity(segments);
         let two_pi = F::two() * F::pi();
 
@@ -56,7 +50,12 @@ impl<F: Float> SoftBody<F> {
         // Calculate initial area as target
         let target_area = Self::compute_area(&particles);
 
-        SoftBody { particles, constraints, target_area, pressure }
+        SoftBody {
+            particles,
+            constraints,
+            target_area,
+            pressure,
+        }
     }
 
     /// Create a rectangular soft body.
@@ -68,7 +67,11 @@ impl<F: Float> SoftBody<F> {
         pressure: F,
         stiffness: F,
     ) -> Self {
-        let segs = if segments_per_side < 2 { 2 } else { segments_per_side };
+        let segs = if segments_per_side < 2 {
+            2
+        } else {
+            segments_per_side
+        };
         let half_w = width * F::half();
         let half_h = height * F::half();
         let mut particles = AllocVec::new();
@@ -112,7 +115,12 @@ impl<F: Float> SoftBody<F> {
 
         let target_area = Self::compute_area(&particles);
 
-        SoftBody { particles, constraints, target_area, pressure }
+        SoftBody {
+            particles,
+            constraints,
+            target_area,
+            pressure,
+        }
     }
 
     fn compute_area(particles: &[Particle<Vec2<F>>]) -> F {
@@ -134,6 +142,12 @@ impl<F: Float> SoftBody<F> {
         for p in self.particles.iter_mut() {
             p.apply_force(force);
         }
+    }
+
+    /// Clamp all particles to an axis-aligned box with optional restitution.
+    pub fn apply_bounds(&mut self, min: Vec2<F>, max: Vec2<F>, restitution: F) {
+        let bounds = BoundsConstraint::new(min, max, restitution);
+        bounds.solve_2d(&mut self.particles);
     }
 
     /// Apply an impulse at the nearest particle to `point`.
@@ -266,41 +280,50 @@ mod tests {
     fn circle_area_approx_pi_r_squared() {
         let body = SoftBody::circle(
             Vec2::new(0.0f32, 0.0),
-            1.0,   // radius
-            32,    // segments
-            1.0,   // pressure
-            1.0,   // stiffness
+            1.0, // radius
+            32,  // segments
+            1.0, // pressure
+            1.0, // stiffness
         );
         let expected = core::f32::consts::PI; // pi * 1^2
         let area = body.area();
         // With 32 segments, the inscribed polygon area should be close to pi
-        assert!((area - expected).abs() < 0.1, "area = {}, expected ≈ {}", area, expected);
+        assert!(
+            (area - expected).abs() < 0.1,
+            "area = {}, expected ≈ {}",
+            area,
+            expected
+        );
     }
 
     #[test]
     fn contains_center() {
-        let body = SoftBody::circle(
-            Vec2::new(5.0f32, 5.0),
-            2.0,
-            16,
-            1.0,
-            1.0,
+        let body = SoftBody::circle(Vec2::new(5.0f32, 5.0), 2.0, 16, 1.0, 1.0);
+        assert!(
+            body.contains(Vec2::new(5.0, 5.0)),
+            "Center should be inside"
         );
-        assert!(body.contains(Vec2::new(5.0, 5.0)), "Center should be inside");
-        assert!(!body.contains(Vec2::new(100.0, 100.0)), "Far point should be outside");
+        assert!(
+            !body.contains(Vec2::new(100.0, 100.0)),
+            "Far point should be outside"
+        );
     }
 
     #[test]
     fn centroid_at_center() {
-        let body = SoftBody::circle(
-            Vec2::new(3.0f32, 4.0),
-            1.0,
-            16,
-            1.0,
-            1.0,
-        );
+        let body = SoftBody::circle(Vec2::new(3.0f32, 4.0), 1.0, 16, 1.0, 1.0);
         let c = body.centroid();
         assert!((c.x - 3.0).abs() < 0.01, "centroid.x = {}", c.x);
         assert!((c.y - 4.0).abs() < 0.01, "centroid.y = {}", c.y);
+    }
+
+    #[test]
+    fn bounds_clamp_particles_into_box() {
+        let mut body = SoftBody::circle(Vec2::new(10.0f32, 10.0), 8.0, 16, 1.0, 1.0);
+        body.apply_bounds(Vec2::new(0.0, 0.0), Vec2::new(12.0, 12.0), 0.2);
+        for p in body.positions() {
+            assert!(p.x >= 0.0 && p.x <= 12.0, "x out of bounds: {}", p.x);
+            assert!(p.y >= 0.0 && p.y <= 12.0, "y out of bounds: {}", p.y);
+        }
     }
 }
